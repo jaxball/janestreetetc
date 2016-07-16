@@ -28,7 +28,12 @@ public class AviatoConn {
 	            to_exchange.println("ADD 3 BOND BUY 997 5");
 	            to_exchange.println("ADD 4 BOND BUY 995 5");
 	            to_exchange.println("ADD 5 BOND BUY 990 5");
-	            
+
+	            int id = 6;
+
+	            int low, high;
+	            boolean init = false;
+
 	            while((reply = from_exchange.readLine()) != null) {
 		            reply = reply.trim();
 //		            SimpleDateFormat sdf = new SimpleDateFormat("h:mm:ss:SSSSSS");
@@ -52,6 +57,47 @@ public class AviatoConn {
 		            	System.out.printf("%o: %s\n", tmp, reply);
 //		            }
 		            System.out.println();
+
+								if (reply.startsWith("BOOK VALBZ")) {
+									String[] response = reply.split(" ");
+
+									for (int i = 0; i < response.length; i++) {
+										if (response[i].equals("BUY")) {
+											String buyValue = response[i+1];
+											low = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+										}
+										if (response[i].equals("SELL")) {
+											String sellValue = response[i+1];
+											high = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
+											init = true;
+										}
+									}
+								}
+
+								if (reply.startsWith("BOOK VALE") && init) {
+									double realValue = (low + high) / (2.0);
+
+									String[] response = reply.split(" ");
+									int buy, sell;
+
+									for (int i = 0; i < response.length; i++) {
+										if (response[i].equals("BUY")) {
+											String buyValue = response[i+1];
+											buy = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+											if (buy + 1 < realValue) {
+								        to_exchange.format("Add %d VALE BUY %d 1", id++, buy + 1);
+											}
+										}
+										if (response[i].equals("SELL")) {
+											String sellValue = response[i+1];
+											sell = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
+								      if (sell - 1 > realValue) {
+								      	to_exchange.format("Add %d VALE SELL %d 1", id++, sell - 1);
+								      }
+										}
+									}
+								}
+
 	            }
 	        }
 	        catch (Exception e)
