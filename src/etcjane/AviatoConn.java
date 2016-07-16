@@ -19,7 +19,7 @@ public class AviatoConn {
 		Date date = new Date();
 		 try
 	        {
-	            s = new Socket("production", 20000);
+	            s = new Socket("test-exch-aviato", 20001);
 	            BufferedReader from_exchange = new BufferedReader(new InputStreamReader(s.getInputStream()));
 	            PrintWriter to_exchange = new PrintWriter(s.getOutputStream(), true);
 
@@ -43,8 +43,9 @@ public class AviatoConn {
 		            		System.out.printf("%s\n", str);
 		            		i++;
 		            	}
+		            } else {
+		            	System.out.printf("%o: %s\n", tmp, reply);
 		            }
-		            System.out.printf("%o: %s\n", tmp, reply);
 		            System.out.println();
 	            }
 	        }
