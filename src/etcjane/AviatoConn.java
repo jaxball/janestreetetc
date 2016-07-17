@@ -19,7 +19,7 @@ public class AviatoConn {
 		Date date = new Date();
 		 try
 	        {
-	            s = new Socket("test-exch-aviato", 20000);
+	            s = new Socket("production", 20000);
 	            BufferedReader from_exchange = new BufferedReader(new InputStreamReader(s.getInputStream()));
 	            PrintWriter to_exchange = new PrintWriter(s.getOutputStream(), true);
 
@@ -31,8 +31,12 @@ public class AviatoConn {
 
 	            int id = 6;
 
-	            int low, high;
-	            boolean init = false;
+	            int low = 0;
+	            int high = 0;
+	            
+            	boolean buySet = false;
+            	boolean init = false;
+	         
 
 	            while((reply = from_exchange.readLine()) != null) {
 		            reply = reply.trim();
@@ -57,19 +61,25 @@ public class AviatoConn {
 		            	System.out.printf("%o: %s\n", tmp, reply);
 //		            }
 		            System.out.println();
-
 								if (reply.startsWith("BOOK VALBZ")) {
+									to_exchange.printf("OUTPUT");
 									String[] response = reply.split(" ");
 
 									for (int i = 0; i < response.length; i++) {
 										if (response[i].equals("BUY")) {
-											String buyValue = response[i+1];
-											low = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+											if (!(response[i+1]).equals("SELL")) {
+												String buyValue = response[i+1];
+												low = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+												buySet = true;
+											}
 										}
 										if (response[i].equals("SELL")) {
-											String sellValue = response[i+1];
-											high = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
-											init = true;
+											if (i+1 != response.length) {
+												String sellValue = response[i+1];
+												high = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
+												if (buySet) init = true;
+											}
+									
 										}
 									}
 								}
@@ -82,18 +92,22 @@ public class AviatoConn {
 
 									for (int i = 0; i < response.length; i++) {
 										if (response[i].equals("BUY")) {
-											String buyValue = response[i+1];
-											buy = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
-											if (buy + 1 < realValue) {
-								        to_exchange.format("Add %d VALE BUY %d 1", id++, buy + 1);
+											if (!(response[i+1]).equals("SELL")) {
+												String buyValue = response[i+1];
+												buy = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+												if (buy + 1 < realValue) {
+													to_exchange.printf("ADD %d VALE BUY %d 1\n", id++, buy + 1);
+												}
 											}
 										}
 										if (response[i].equals("SELL")) {
+											if (i+1 != response.length) {
 											String sellValue = response[i+1];
 											sell = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
 								      if (sell - 1 > realValue) {
-								      	to_exchange.format("Add %d VALE SELL %d 1", id++, sell - 1);
+								      	to_exchange.printf("ADD %d VALE SELL %d 1\n", id++, sell - 1);
 								      }
+										}
 										}
 									}
 								}
