@@ -28,6 +28,7 @@ public class AviatoConn {
 	            to_exchange.println("ADD 3 BOND BUY 997 5");
 	            to_exchange.println("ADD 4 BOND BUY 995 5");
 	            to_exchange.println("ADD 5 BOND BUY 990 5");
+//	            to_exchange.println("ADD 9999 XLF BUY 4280 10");
 
 	            int id = 6;
 
@@ -37,7 +38,9 @@ public class AviatoConn {
             	boolean buySet = false;
             	boolean init = false;
 	         
-
+            	int[] xlfma = new int[10];
+            	int xlfma_counter = 0;
+            	
 	            while((reply = from_exchange.readLine()) != null) {
 		            reply = reply.trim();
 //		            SimpleDateFormat sdf = new SimpleDateFormat("h:mm:ss:SSSSSS");
@@ -61,57 +64,91 @@ public class AviatoConn {
 		            	System.out.printf("%o: %s\n", tmp, reply);
 //		            }
 		            System.out.println();
-								if (reply.startsWith("BOOK VALBZ")) {
-									to_exchange.printf("OUTPUT");
-									String[] response = reply.split(" ");
+		            
+		            // Parse input streams buy every BUY|SELL label and rip $$ using arbitrage
+		            
+					if (reply.startsWith("BOOK VALBZ")) {
+//									to_exchange.printf("OUTPUT");
+						String[] response = reply.split(" ");
 
-									for (int i = 0; i < response.length; i++) {
-										if (response[i].equals("BUY")) {
-											if (!(response[i+1]).equals("SELL")) {
-												String buyValue = response[i+1];
-												low = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
-												buySet = true;
-											}
-										}
-										if (response[i].equals("SELL")) {
-											if (i+1 != response.length) {
-												String sellValue = response[i+1];
-												high = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
-												if (buySet) init = true;
-											}
-									
-										}
+						for (int i = 0; i < response.length; i++) {
+							if (response[i].equals("BUY")) {
+								if (!(response[i+1]).equals("SELL")) {
+									String buyValue = response[i+1];
+									low = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+									buySet = true;
+								}
+							}
+							else if (response[i].equals("SELL")) {
+								if (i+1 != response.length) {
+									String sellValue = response[i+1];
+									high = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
+									if (buySet) init = true;
+								}
+						
+							}
+						}
+					}
+
+					if (reply.startsWith("BOOK VALE") && init) {
+						// this is just our estimate
+						double realValue = (low + high) / (2.0);
+						
+						
+
+						String[] response = reply.split(" ");
+						int buy, sell;
+
+						for (int i = 0; i < response.length; i++) {
+							if (response[i].equals("BUY")) {
+								if (!(response[i+1]).equals("SELL")) {
+									String buyValue = response[i+1];
+									buy = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
+									if (buy + 1 < realValue) {
+										to_exchange.printf("ADD %d VALE BUY %d 2\n", id++, buy + 1);
 									}
 								}
-
-								if (reply.startsWith("BOOK VALE") && init) {
-									double realValue = (low + high) / (2.0);
-
-									String[] response = reply.split(" ");
-									int buy, sell;
-
-									for (int i = 0; i < response.length; i++) {
-										if (response[i].equals("BUY")) {
-											if (!(response[i+1]).equals("SELL")) {
-												String buyValue = response[i+1];
-												buy = Integer.parseInt(buyValue.substring(0, buyValue.indexOf(":")));
-												if (buy + 1 < realValue) {
-													to_exchange.printf("ADD %d VALE BUY %d 1\n", id++, buy + 1);
-												}
-											}
-										}
-										if (response[i].equals("SELL")) {
-											if (i+1 != response.length) {
-											String sellValue = response[i+1];
-											sell = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
-								      if (sell - 1 > realValue) {
-								      	to_exchange.printf("ADD %d VALE SELL %d 1\n", id++, sell - 1);
-								      }
-										}
-										}
-									}
-								}
-
+							}
+							else if (response[i].equals("SELL")) {
+								if (i+1 != response.length) {
+								String sellValue = response[i+1];
+								sell = Integer.parseInt(sellValue.substring(0, sellValue.indexOf(":")));
+					      if (sell - 1 > realValue) {
+					      	to_exchange.printf("ADD %d VALE SELL %d 2\n", id++, sell - 1);
+					      }
+							}
+							}
+						}
+					}
+					
+					// Attempt at moving average for XLF - does not work yet
+					if (reply.startsWith("TRADE XLF")) {
+						String[] traderes = reply.split(" ");
+						int lasttradevalue = Integer.parseInt(traderes[2]);
+						xlfma[xlfma_counter%10] = lasttradevalue; 
+						
+						if (xlfma_counter % 10 == 9) {
+							// sum up the totals and we will see how it goes
+							int xlflow = xlfma[0];
+							int xlfhigh = xlfma[9];
+							int runningsum = 0;
+							for (int i=0; i<10; i++) {
+								runningsum += xlfma[i];
+							} 
+							runningsum /= 10; // take average
+							
+							// heuristics
+							if ((runningsum <= (xlflow*1.5)) && (runningsum <= (xlfhigh *0.9))) {
+								to_exchange.printf("ADD %d AVIATO SELL %d 1\n", id++, xlfhigh);
+							} 
+							else if ((runningsum < xlflow) && runningsum > (1.5*xlfhigh)) {
+								to_exchange.printf("ADD %d AVIATO BUY %d 1\n", id++, xlfhigh);
+							}
+						}
+						xlfma_counter++;
+					}
+					
+					
 	            }
 	        }
 	        catch (Exception e)
